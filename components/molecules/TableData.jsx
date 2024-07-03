@@ -8,7 +8,7 @@ import { useEffect, useState, useRef } from 'react';
 export function TableData() {
   const [playingIndex, setPlayingIndex] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useRef(new Audio());
+  const audioRef = useRef(null); // Initial state set to null
   const router = useRouter();
 
   const [data, setData] = useState([]);
@@ -24,52 +24,65 @@ export function TableData() {
       });
   }, []);
 
+  // Initialize the audio object only on the client side
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      audioRef.current = new Audio();
+    }
+  }, []);
+
   // Function to handle both play and pause operations
   const playPause = (index, url) => {
-    if (playingIndex === index) {
-      if (!audioRef.current.paused) {
-        audioRef.current.pause();
-        setIsPlaying(false);
+    if (audioRef.current) { // Ensure audioRef.current is defined
+      if (playingIndex === index) {
+        if (!audioRef.current.paused) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+        } else {
+          audioRef.current.play();
+          setIsPlaying(true);
+        }
       } else {
+        if (playingIndex !== null) {
+          audioRef.current.pause();
+        }
+        audioRef.current.src = url;
         audioRef.current.play();
+        setPlayingIndex(index);
         setIsPlaying(true);
       }
-    } else {
-      if (playingIndex !== null) {
-        audioRef.current.pause();
-      }
-      audioRef.current.src = url;
-      audioRef.current.play();
-      setPlayingIndex(index);
-      setIsPlaying(true);
     }
   };
 
   // Event listeners to update state when audio is played or paused
   useEffect(() => {
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
+    if (audioRef.current) {
+      const handlePlay = () => setIsPlaying(true);
+      const handlePause = () => setIsPlaying(false);
 
-    const audio = audioRef.current;
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
+      const audio = audioRef.current;
+      audio.addEventListener('play', handlePlay);
+      audio.addEventListener('pause', handlePause);
 
-    return () => {
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
-    };
+      return () => {
+        audio.removeEventListener('play', handlePlay);
+        audio.removeEventListener('pause', handlePause);
+      };
+    }
   }, []);
 
   // Cleanup function to pause the audio when the component is unmounted
   useEffect(() => {
     return () => {
-      audioRef.current.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
     };
   }, []);
 
   const onClickHandler = (id) => {
-    router.push(`/read-quran?surah=${id}`)
-  }
+    router.push(`/read-quran?surah=${id}`);
+  };
 
   return (
     <Table className="my-10">
@@ -89,7 +102,9 @@ export function TableData() {
             </TableCell>
             <TableCell className="text-end font-semibold">{item.name_translations.ar}</TableCell>
             <TableCell className="text-center">
-              <button onClick={() => playPause(index, item.recitation)}>{playingIndex === index && isPlaying ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5" />}</button>
+              <button onClick={() => playPause(index, item.recitation)}>
+                {playingIndex === index && isPlaying ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5" />}
+              </button>
             </TableCell>
             <TableCell>
               <button onClick={() => onClickHandler(item.number_of_surah)}>
